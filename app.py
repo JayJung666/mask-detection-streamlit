@@ -86,22 +86,42 @@ class VideoTransformer(VideoTransformerBase):
         results = self.model.predict(img, conf=self.confidence_threshold, verbose=False)
         result = results[0]
 
-        for box in result.boxes:
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            conf = float(box.conf[0])
-            cls = int(box.cls[0])
-            class_name = self.model.names[cls]
-            label = f"{class_name} {conf:.2f}"
+        # Inisialisasi counter per frame
+        counter = {
+            'with_mask': 0,
+            'without_mask': 0,
+            'mask_weared_incorrect': 0
+        }
 
-            if class_name == 'with_mask':
-                color = (0, 255, 0)
-            elif class_name == 'without_mask':
-                color = (0, 0, 255)
-            else:
-                color = (0, 255, 255)
+        if result.boxes is not None and len(result.boxes) > 0:
+            for box in result.boxes:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                conf = float(box.conf[0])
+                cls = int(box.cls[0])
+                class_name = self.model.names[cls]
+                label = f"{class_name} {conf:.2f}"
 
-            cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                if class_name == 'with_mask':
+                    color = (0, 255, 0)
+                    counter['with_mask'] += 1
+                elif class_name == 'without_mask':
+                    color = (0, 0, 255)
+                    counter['without_mask'] += 1
+                elif class_name == 'mask_weared_incorrect':
+                    color = (0, 255, 255)
+                    counter['mask_weared_incorrect'] += 1
+                else:
+                    color = (255, 255, 255)
+
+                cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
+                cv2.putText(img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
+        # Tampilkan counter realtime di frame
+        y_offset = 30
+        for key, value in counter.items():
+            text = f"{key}: {value}"
+            cv2.putText(img, text, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+            y_offset += 30
 
         return av.VideoFrame.from_ndarray(img, format="bgr24")
 
